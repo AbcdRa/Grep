@@ -11,6 +11,7 @@ public class Grep {
     private static boolean ignoreCase = false;
     private static boolean isRegularExpression = false;
     private static boolean isMoreKeyWords = false;
+    private static boolean isSplitText = true;
     private static ArrayList<String> text;
 
     private final static int BUFFER_SIZE = 1000;
@@ -19,7 +20,7 @@ public class Grep {
     private static boolean parseArgs(String[] args) {
         //Если аргументов нет пишем справку пользователю
         if(args.length == 0) {
-            System.out.println("Haven't arguments.\nSyntax: filename [keyWord1] ... [keyWordN] [[-i], [-r], [-s]] ");
+            System.out.println("Haven't arguments.\nSyntax: filename [keyWord1] ... [keyWordN] [[-i], [-r], [-s], [-u] ");
             return false;
         }
         //Если аргумент один, то это должно быть имя файла
@@ -45,12 +46,22 @@ public class Grep {
                     isMoreKeyWords = true;
                 } else if (filename.equals("")) {
                     filename = arg;
+                } else if (arg.equals("-u") && isSplitText) {
+                        isSplitText = false;
                 } else {
                     keyWords.add(arg);
                 }
             }
         }
         return true;
+    }
+
+    private static String joinLineInText() {
+        StringBuilder out = new StringBuilder();
+        for(String line : text) {
+            out.append(line);
+        }
+        return out.toString();
     }
 
     //Получаем массив строк из файла, по пути filename
@@ -102,13 +113,17 @@ public class Grep {
     //Самый простой метод поиска одно слово, игнор регистра
     private static void baseSearch(String keyWord, ArrayList<String> text) {
         int countMatch = 0;
-        for(String line : text) {
-            int countMatchOnLine = baseLineSearch(keyWord, line, text.indexOf(line));
-            countMatch += countMatchOnLine;
-            if(countMatchOnLine > 0)
-                System.out.println("Matches found in string: " + countMatchOnLine);
+        if(isSplitText) {
+            for (String line : text) {
+                int countMatchOnLine = baseLineSearch(keyWord, line, text.indexOf(line));
+                countMatch += countMatchOnLine;
+                if (countMatchOnLine > 0)
+                    System.out.println("Matches found in string: " + countMatchOnLine);
+            }
+        } else {
+            countMatch = baseLineSearch(keyWord, joinLineInText(), 0);
         }
-        System.out.println("matches found for text: " + countMatch);
+        System.out.println("Matches found for text: " + countMatch);
     }
 
     //Поиск слова по строке
@@ -154,17 +169,26 @@ public class Grep {
         if(ignoreCase)  pat = Pattern.compile(pattern, Pattern.CASE_INSENSITIVE);
         else pat = Pattern.compile(pattern);
         int countMatch = 0;
-        for (String line : text) {
-            mat = pat.matcher(line);
-            int countMatchOnLine = 0;
-            while (mat.find()) {
-                countMatchOnLine++;
-                displayMatch(mat.group(), line, text.indexOf(line), mat.start());
+        if(isSplitText) {
+            for (String line : text) {
+                mat = pat.matcher(line);
+                int countMatchOnLine = 0;
+                while (mat.find()) {
+                    countMatchOnLine++;
+                    displayMatch(mat.group(), line, text.indexOf(line), mat.start());
+                }
+                if (countMatchOnLine > 0)
+                    System.out.println("Matches found in string: " + countMatchOnLine);
             }
-            if(countMatchOnLine > 0)
-                System.out.println("Matches found in string: " + countMatchOnLine);
+        } else {
+            String lineText = joinLineInText();
+            mat = pat.matcher(lineText);
+            while (mat.find()) {
+                countMatch++;
+                displayMatch(mat.group(), lineText, 0, mat.start());
+            }
         }
-        System.out.println("matches found for text: " + countMatch);
+        System.out.println("Matches found for text: " + countMatch);
     }
 
     //Метод, использующий настройки переменных, для подбора необходимого метода поиска
